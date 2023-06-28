@@ -83,7 +83,7 @@ class OpenCVConan(ConanFile):
         "with_cufft": False,
         "with_cudnn": False,
         "with_v4l": False,
-        "with_ffmpeg": True,
+        "with_ffmpeg": False,
         "with_imgcodec_hdr": False,
         "with_imgcodec_pfm": False,
         "with_imgcodec_pxm": False,
@@ -113,13 +113,14 @@ class OpenCVConan(ConanFile):
     def _has_with_tiff_option(self):
         return self.settings.os != "iOS"
 
-    @property
-    def _has_with_ffmpeg_option(self):
-        return self.settings.os != "iOS" and self.settings.os != "WindowsStore"
+    # @property
+    # def _has_with_ffmpeg_option(self):
+    #     return self.settings.os != "iOS" and self.settings.os != "WindowsStore"
 
     @property
     def _protobuf_version(self):
-        return "3.17.1"
+        # return "3.17.1"
+        return "3.21.4"
 
     def export_sources(self):
         export_conandata_patches(self)
@@ -134,13 +135,13 @@ class OpenCVConan(ConanFile):
             del self.options.with_msmf
             del self.options.with_msmf_dxva
 
-        if self._has_with_ffmpeg_option:
-            # Following the packager choice, ffmpeg is enabled by default when
-            # supported, except on Android. See
-            # https://github.com/opencv/opencv/blob/39c3334147ec02761b117f180c9c4518be18d1fa/CMakeLists.txt#L266-L268
-            self.options.with_ffmpeg = self.settings.os != "Android"
-        else:
-            del self.options.with_ffmpeg
+        # if self._has_with_ffmpeg_option:
+        #     # Following the packager choice, ffmpeg is enabled by default when
+        #     # supported, except on Android. See
+        #     # https://github.com/opencv/opencv/blob/39c3334147ec02761b117f180c9c4518be18d1fa/CMakeLists.txt#L266-L268
+        #     self.options.with_ffmpeg = self.settings.os != "Android"
+        # else:
+        #     del self.options.with_ffmpeg
 
         if "arm" not in self.settings.arch:
             del self.options.neon
@@ -199,9 +200,9 @@ class OpenCVConan(ConanFile):
             self.requires("libtiff/4.4.0")
         if self.options.with_eigen:
             self.requires("eigen/3.4.0")
-        if self.options.get_safe("with_ffmpeg"):
-            # opencv doesn't support ffmpeg >= 5.0.0 for the moment (until 4.5.5 at least)
-            self.requires("ffmpeg/4.4")
+        # if self.options.get_safe("with_ffmpeg"):
+        #     # opencv doesn't support ffmpeg >= 5.0.0 for the moment (until 4.5.5 at least)
+        #     self.requires("ffmpeg/4.4")
         if self.options.parallel == "tbb":
             self.requires("onetbb/2021.7.0")
         if self.options.with_ipp == "intel-ipp":
@@ -260,8 +261,8 @@ class OpenCVConan(ConanFile):
         replace_in_file(self, os.path.join(self.source_folder, "modules", "imgcodecs", "CMakeLists.txt"), "JASPER_", "Jasper_")
 
         # Fix detection of ffmpeg
-        replace_in_file(self, os.path.join(self.source_folder, "modules", "videoio", "cmake", "detect_ffmpeg.cmake"),
-                        "FFMPEG_FOUND", "ffmpeg_FOUND")
+        # replace_in_file(self, os.path.join(self.source_folder, "modules", "videoio", "cmake", "detect_ffmpeg.cmake"),
+        #                 "FFMPEG_FOUND", "ffmpeg_FOUND")
 
         # Cleanup RPATH
         if Version(self.version) < "4.1.2":
@@ -362,19 +363,19 @@ class OpenCVConan(ConanFile):
         tc.variables["WITH_CLP"] = False
         tc.variables["WITH_NVCUVID"] = False
 
-        tc.variables["WITH_FFMPEG"] = self.options.get_safe("with_ffmpeg")
-        if self.options.get_safe("with_ffmpeg"):
-            tc.variables["OPENCV_FFMPEG_SKIP_BUILD_CHECK"] = True
-            tc.variables["OPENCV_FFMPEG_SKIP_DOWNLOAD"] = True
-            # opencv will not search for ffmpeg package, but for
-            # libavcodec;libavformat;libavutil;libswscale modules
-            tc.variables["OPENCV_FFMPEG_USE_FIND_PACKAGE"] = "ffmpeg"
-            tc.variables["OPENCV_INSTALL_FFMPEG_DOWNLOAD_SCRIPT"] = False
-            tc.variables["FFMPEG_LIBRARIES"] = "ffmpeg::avcodec;ffmpeg::avformat;ffmpeg::avutil;ffmpeg::swscale"
-            ffmpeg_cpp_info = self.dependencies["ffmpeg"].cpp_info
-            for component in ["avcodec", "avformat", "avutil", "swscale"]:
-                ffmpeg_component_version = ffmpeg_cpp_info.components[component].get_property("component_version")
-                tc.variables[f"FFMPEG_lib{component}_VERSION"] = ffmpeg_component_version
+        # tc.variables["WITH_FFMPEG"] = self.options.get_safe("with_ffmpeg")
+        # if self.options.get_safe("with_ffmpeg"):
+        #     tc.variables["OPENCV_FFMPEG_SKIP_BUILD_CHECK"] = True
+        #     tc.variables["OPENCV_FFMPEG_SKIP_DOWNLOAD"] = True
+        #     # opencv will not search for ffmpeg package, but for
+        #     # libavcodec;libavformat;libavutil;libswscale modules
+        #     tc.variables["OPENCV_FFMPEG_USE_FIND_PACKAGE"] = "ffmpeg"
+        #     tc.variables["OPENCV_INSTALL_FFMPEG_DOWNLOAD_SCRIPT"] = False
+        #     tc.variables["FFMPEG_LIBRARIES"] = "ffmpeg::avcodec;ffmpeg::avformat;ffmpeg::avutil;ffmpeg::swscale"
+        #     ffmpeg_cpp_info = self.dependencies["ffmpeg"].cpp_info
+        #     for component in ["avcodec", "avformat", "avutil", "swscale"]:
+        #         ffmpeg_component_version = ffmpeg_cpp_info.components[component].get_property("component_version")
+        #         tc.variables[f"FFMPEG_lib{component}_VERSION"] = ffmpeg_component_version
 
         tc.variables["WITH_GSTREAMER"] = False
         tc.variables["WITH_HALIDE"] = False
@@ -587,17 +588,17 @@ class OpenCVConan(ConanFile):
         def xfeatures2d():
             return ["opencv_xfeatures2d"] if self.options.contrib else []
 
-        def ffmpeg():
-            if self.options.get_safe("with_ffmpeg"):
-                return [
-                        "ffmpeg::avcodec",
-                        "ffmpeg::avfilter",
-                        "ffmpeg::avformat",
-                        "ffmpeg::avutil",
-                        "ffmpeg::swresample",
-                        "ffmpeg::swscale" ]
-            else:
-                return [ ]
+        # def ffmpeg():
+        #     if self.options.get_safe("with_ffmpeg"):
+        #         return [
+        #                 "ffmpeg::avcodec",
+        #                 "ffmpeg::avfilter",
+        #                 "ffmpeg::avformat",
+        #                 "ffmpeg::avutil",
+        #                 "ffmpeg::swresample",
+        #                 "ffmpeg::swscale" ]
+        #     else:
+        #         return [ ]
 
         def ipp():
             if self.options.with_ipp:
@@ -620,7 +621,10 @@ class OpenCVConan(ConanFile):
             {"target": "opencv_imgcodecs",  "lib": "imgcodecs",  "requires": ["opencv_core", "opencv_imgproc", "zlib::zlib"] + eigen() + imageformats_deps() + ipp()},
             {"target": "opencv_videoio",    "lib": "videoio",    "requires": (
                 ["opencv_core", "opencv_imgproc", "opencv_imgcodecs"]
-                + eigen() + ffmpeg() + ipp())},
+                + eigen() + ipp())},
+            # {"target": "opencv_videoio",    "lib": "videoio",    "requires": (
+            #     ["opencv_core", "opencv_imgproc", "opencv_imgcodecs"]
+            #     + eigen() + ffmpeg() + ipp())},
             {"target": "opencv_calib3d",    "lib": "calib3d",    "requires": ["opencv_core", "opencv_flann", "opencv_imgproc", "opencv_features2d"]+ eigen() + ipp()},
             {"target": "opencv_highgui",    "lib": "highgui",    "requires": ["opencv_core", "opencv_imgproc", "opencv_imgcodecs", "opencv_videoio"] + freetype() + eigen() + gtk() + ipp()},
             {"target": "opencv_stitching",  "lib": "stitching",  "requires": ["opencv_core", "opencv_flann", "opencv_imgproc", "opencv_features2d", "opencv_calib3d"] + xfeatures2d() + eigen() + ipp()},
